@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AttendAI – Academic SaaS Sign In</title>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <!-- Custom CSS -->
+  <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet" />
+
+  <style>
+    body {
+      background: radial-gradient(circle at top right, #0f2744 0%, #0a192f 50%, #071120 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      padding: 1.5rem 1rem;
+    }
+    .login-container {
+      width: 100%;
+      max-width: 440px;
+    }
+    .login-card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .demo-pill {
+      font-size: 0.76rem;
+      cursor: pointer;
+      border-radius: 20px;
+      padding: 4px 10px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .demo-pill:hover {
+      background: #e0f2fe;
+      color: #0891b2;
+      border-color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3 shadow-sm border-0" role="alert">
+        <i class="bi bi-info-circle me-1"></i>{{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+
+    <div class="card login-card border-0">
+      <div class="card-body p-4 p-sm-5">
+        <!-- Brand Header -->
+        <div class="text-center mb-4">
+          <div class="sidebar-brand-icon mx-auto mb-3" style="width:52px;height:52px;font-size:1.5rem;">
+            <i class="bi bi-cpu-fill text-white"></i>
+          </div>
+          <h3 class="fw-bold mb-1" style="color:var(--navy-900);">AttendAI</h3>
+          <p class="text-muted small mb-0">Intelligent Attendance Analytics &amp; Risk Prediction</p>
+          <span class="badge badge-cyan mt-2">Academic SaaS Portal</span>
+        </div>
+
+        <!-- Login Form -->
+        <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm" novalidate>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Account Username</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-muted"></i></span>
+              <input type="text" name="username" id="usernameInput" class="form-control border-start-0"
+                     placeholder="e.g. admin or faculty1" required autofocus
+                     value="{{ request.form.get('username', '') }}" />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <label class="form-label fw-semibold small mb-1">Password</label>
+            </div>
+            <div class="input-group">
+              <span class="input-group-text bg-light border-end-0"><i class="bi bi-lock text-muted"></i></span>
+              <input type="password" name="password" id="passwordField"
+                     class="form-control border-start-0 border-end-0" placeholder="••••••••" required />
+              <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePwd" title="Show password">
+                <i class="bi bi-eye" id="eyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-4 d-flex align-items-center justify-content-between">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="remember" id="remember">
+              <label class="form-check-label small text-muted" for="remember">Remember me</label>
+            </div>
+            <span class="text-muted small">Institutional Login</span>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 fw-semibold py-2" id="submitBtn">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In to Dashboard
+          </button>
+        </form>
+
+        <!-- Quick Demo Credentials Box -->
+        <div class="mt-4 pt-3 border-top">
+          <div class="text-muted small fw-semibold mb-2 text-center">
+            <i class="bi bi-stars text-cyan me-1"></i>Quick Demo Sign-in:
+          </div>
+          <div class="d-flex flex-wrap justify-content-center gap-2">
+            <span class="demo-pill" onclick="fillCredentials('admin', 'Admin@123')">
+              <i class="bi bi-shield-lock-fill text-primary"></i>Admin
+            </span>
+            <span class="demo-pill" onclick="fillCredentials('faculty1', 'Faculty@123')">
+              <i class="bi bi-person-badge-fill text-success"></i>Faculty 1
+            </span>
+            <span class="demo-pill" onclick="fillCredentials('faculty2', 'Faculty@123')">
+              <i class="bi bi-person-badge-fill text-info"></i>Faculty 2
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Footer Copyright -->
+    <p class="text-center text-white-50 small mt-3 mb-0">
+      AttendAI &copy; {{ 2025 }} &nbsp;|&nbsp; M.Tech Internship Project &nbsp;|&nbsp; Scikit-learn &amp; Flask
+    </p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Password toggle
+    document.getElementById("togglePwd").addEventListener("click", function () {
+      const f = document.getElementById("passwordField");
+      const i = document.getElementById("eyeIcon");
+      if (f.type === "password") {
+        f.type = "text";
+        i.className = "bi bi-eye-slash";
+      } else {
+        f.type = "password";
+        i.className = "bi bi-eye";
+      }
+    });
+
+    // Quick fill helper
+    function fillCredentials(u, p) {
+      document.getElementById("usernameInput").value = u;
+      document.getElementById("passwordField").value = p;
+      document.getElementById("loginForm").submit();
+    }
+  </script>
+</body>
+</html>

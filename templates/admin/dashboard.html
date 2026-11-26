@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+{% block title %}Academic SaaS Dashboard{% endblock %}
+{% block page_title %}Executive Attendance &amp; Academic Risk Dashboard{% endblock %}
+
+{% block content %}
+<!-- ── Top Filter Bar & Quick Actions ──────────────────────────────────────── -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <!-- Semester Filter Form -->
+    <form method="GET" action="{{ url_for('admin.dashboard') }}" class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0 fw-semibold text-secondary small text-nowrap">
+        <i class="bi bi-calendar3 text-primary me-1"></i>Academic Term:
+      </label>
+      <select name="semester_id" class="form-select form-select-sm" style="min-width: 220px;" onchange="this.form.submit()">
+        {% for sem in all_semesters %}
+        <option value="{{ sem.id }}" {% if selected_semester_id == sem.id %}selected{% endif %}>
+          {{ sem.name }} {% if sem.is_active %}(Active Term){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </form>
+
+    <!-- Quick Action Buttons -->
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('attendance.mark') }}" class="btn btn-sm btn-primary">
+        <i class="bi bi-check2-square me-1"></i>Mark Attendance
+      </a>
+      <form method="POST" action="{{ url_for('analytics.predict_all') }}" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-cyan">
+          <i class="bi bi-cpu me-1"></i>Run ML Predictions
+        </button>
+      </form>
+      <a href="{{ url_for('admin.students') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-person-plus me-1"></i>Manage Students
+      </a>
+      <a href="{{ url_for('reports.pdf_risk') }}" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ── 6 Required Metric Cards ──────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- Card 1: Total Students -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="card kpi-card kpi-navy h-100">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-label">Total Students</div>
+          <div class="kpi-icon bg-primary-subtle text-primary">
+            <i class="bi bi-people-fill"></i>
+          </div>
+        </div>
+        <div class="kpi-value">{{ total_students }}</div>
+        <div class="text-muted small mt-1">Enrolled Scholars</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Total Subjects -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="card kpi-card kpi-cyan h-100">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-label">Total Subjects</div>
+          <div class="kpi-icon bg-info-subtle text-info">
+            <i class="bi bi-journal-bookmark-fill"></i>
+          </div>
+        </div>
+        <div class="kpi-value">{{ total_subjects }}</div>
+        <div class="text-muted small mt-1">Active Courses</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Average Attendance -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="card kpi-card kpi-emerald h-100">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-label">Avg Attendance</div>
+          <div class="kpi-icon bg-success-subtle text-success">
+            <i class="bi bi-activity"></i>
+          </div>
+        </div>
+        <div class="kpi-value text-success">{{ average_attendance }}%</div>
+        <div class="text-muted small mt-1">Institutional Target: 75%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: High Risk Count -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="card kpi-card kpi-rose h-100">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-label text-danger">High Risk</div>
+          <div class="kpi-icon bg-danger-subtle text-danger">
+            <i class="bi bi-shield-x"></i>
+          </div>
+        </div>
+        <div class="kpi-value text-danger">{{ high_risk_count }}</div>
+        <div class="text-muted small mt-1">Shortage Prob &ge; 65%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 5: Medium Risk Count -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="card kpi-card kpi-amber h-100">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-label text-warning">Medium Risk</div>
+          <div class="kpi-icon bg-warning-subtle text-warning">
+            <i class="bi bi-shield-exclamation"></i>
+          </div>
+        </div>
+        <div class="kpi-value text-warning">{{ medium_risk_count }}</div>
+        <div class="text-muted small mt-1">Prob 35% – 64%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 6: Low Risk Count -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="card kpi-card kpi-emerald h-100">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-label text-success">Low Risk</div>
+          <div class="kpi-icon bg-success-subtle text-success">
+            <i class="bi bi-shield-check"></i>
+          </div>
+        </div>
+        <div class="kpi-value text-success">{{ low_risk_count }}</div>
+        <div class="text-muted small mt-1">Safe Standing (&ge; 75%)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── First Charts Row: Department-wise & Risk Distribution ────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- Chart 1: Department-wise Attendance -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0">
+          <i class="bi bi-buildings text-primary me-2"></i>Department-wise Attendance Analysis
+        </h6>
+        <span class="badge badge-cyan">Threshold: 75%</span>
+      </div>
+      <div class="card-body">
+        {% if dept_labels and dept_labels|length > 0 %}
+        <div style="height: 290px;">
+          <canvas id="deptChart"></canvas>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="bi bi-bar-chart"></i></div>
+          <div class="empty-state-title">No Department Data</div>
+          <div class="empty-state-text">No student attendance records found for this academic term to compute department aggregates.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 4: Risk Distribution -->
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0">
+          <i class="bi bi-pie-chart text-danger me-2"></i>Student Risk Classification
+        </h6>
+        <a href="{{ url_for('analytics.risk_dashboard') }}" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:0.75rem;">
+          Detailed Roster
+        </a>
+      </div>
+      <div class="card-body d-flex flex-column justify-content-center">
+        {% if high_risk_count + medium_risk_count + low_risk_count > 0 %}
+        <div style="height: 230px; position: relative;">
+          <canvas id="riskDistChart"></canvas>
+        </div>
+        <div class="d-flex justify-content-around text-center border-top pt-3 mt-2">
+          <div>
+            <div class="small fw-semibold text-danger">High Risk</div>
+            <div class="fw-bold fs-6">{{ high_risk_count }}</div>
+          </div>
+          <div>
+            <div class="small fw-semibold text-warning">Medium Risk</div>
+            <div class="fw-bold fs-6">{{ medium_risk_count }}</div>
+          </div>
+          <div>
+            <div class="small fw-semibold text-success">Low Risk</div>
+            <div class="fw-bold fs-6">{{ low_risk_count }}</div>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="bi bi-pie-chart"></i></div>
+          <div class="empty-state-title">No Risk Distribution</div>
+          <div class="empty-state-text">Risk predictions will appear once attendance sessions are recorded.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Second Charts Row: Subject-wise & Monthly Trends ─────────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- Chart 2: Subject-wise Attendance -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0">
+          <i class="bi bi-book-half text-info me-2"></i>Subject-wise Attendance Rate
+        </h6>
+        <span class="badge bg-light text-dark border">Classes Conducted</span>
+      </div>
+      <div class="card-body">
+        {% if subject_labels and subject_labels|length > 0 %}
+        <div style="height: 280px;">
+          <canvas id="subjectChart"></canvas>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="bi bi-book"></i></div>
+          <div class="empty-state-title">No Subjects Enrolled</div>
+          <div class="empty-state-text">No active curriculum subjects linked to the selected semester.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 3: Monthly Trends -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0">
+          <i class="bi bi-graph-up text-success me-2"></i>Monthly Attendance Trajectory
+        </h6>
+        <span class="badge badge-cyan">Temporal Trend</span>
+      </div>
+      <div class="card-body">
+        {% if month_labels and month_labels|length > 0 %}
+        <div style="height: 280px;">
+          <canvas id="monthlyTrendChart"></canvas>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="bi bi-calendar-x"></i></div>
+          <div class="empty-state-title">No Monthly History</div>
+          <div class="empty-state-text">Monthly trajectory will plot automatically as classroom attendance sessions are logged over time.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Chart 5 / Table 5: Top 10 Students with Shortages ────────────────────── -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div>
+      <h6 class="mb-0 text-danger">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i>Top 10 Students with Attendance Shortages (&lt; 75%)
+      </h6>
+      <div class="text-muted small mt-1">Identifies the highest-deficit scholars requiring immediate academic counseling or faculty intervention.</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-danger-subtle text-danger">
+        {{ total_shortages_count }} Total Under 75%
+      </span>
+      <a href="{{ url_for('analytics.risk_dashboard') }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-list-check me-1"></i>Full Risk Roster
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if top_10_shortages and top_10_shortages|length > 0 %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3" style="width: 50px;">#</th>
+            <th>Student Details</th>
+            <th>Department &amp; Class</th>
+            <th>Current Attendance</th>
+            <th>Deficit to 75%</th>
+            <th>Classes Needed</th>
+            <th>Risk Tier</th>
+            <th class="text-end pe-3">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in top_10_shortages %}
+          <tr>
+            <td class="ps-3 fw-bold text-muted">{{ loop.index }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm" style="width:30px;height:30px;font-size:0.75rem;">
+                  {{ s.name[0] | upper }}
+                </div>
+                <div>
+                  <a href="{{ url_for('analytics.student_risk_report', student_id=s.id) }}"
+                     class="fw-semibold text-dark text-decoration-none">
+                    {{ s.name }}
+                  </a>
+                  <div class="font-monospace text-muted small" style="font-size:0.75rem;">{{ s.roll_number }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="small fw-semibold text-secondary">{{ s.department }}</div>
+              <div class="text-muted small" style="font-size:0.72rem;">Year {{ s.year }} · Sec {{ s.section }}</div>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2" style="max-width: 140px;">
+                <div class="progress flex-grow-1" style="height: 6px;">
+                  <div class="progress-bar {% if s.percentage < 60 %}bg-danger{% else %}bg-warning{% endif %}"
+                       style="width: {{ s.percentage }}%;"></div>
+                </div>
+                <span class="fw-bold small {% if s.percentage < 60 %}text-danger{% else %}text-warning{% endif %}">
+                  {{ s.percentage }}%
+                </span>
+              </div>
+              <div class="text-muted small" style="font-size:0.7rem;">{{ s.attended }} of {{ s.conducted }} sessions</div>
+            </td>
+            <td>
+              <span class="badge bg-danger-subtle text-danger fw-semibold">
+                -{{ s.shortage_deficit }}%
+              </span>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">
+                {{ s.classes_needed }} consecutive
+              </span>
+            </td>
+            <td>
+              <span class="badge {% if s.risk_tier == 'High' %}bg-danger{% elif s.risk_tier == 'Medium' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                {{ s.risk_tier }}
+              </span>
+            </td>
+            <td class="text-end pe-3">
+              <a href="{{ url_for('analytics.student_risk_report', student_id=s.id) }}"
+                 class="btn btn-sm btn-outline-cyan py-1 px-2"
+                 title="Open Individual Academic Risk Report">
+                <i class="bi bi-file-earmark-medical me-1"></i>Report
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state py-4">
+      <div class="empty-state-icon text-success bg-success-subtle">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <div class="empty-state-title">Zero Attendance Shortages!</div>
+      <div class="empty-state-text">
+        Every enrolled student in this academic term currently meets or exceeds the mandatory 75% institutional attendance threshold.
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  // Global Chart Defaults for Clean Academic SaaS Theme
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = "#64748b";
+
+  // ── Chart 1: Department-wise Bar Chart ────────────────────────────────────
+  {% if dept_labels and dept_labels|length > 0 %}
+  const ctxDept = document.getElementById("deptChart");
+  if (ctxDept) {
+    new Chart(ctxDept, {
+      type: "bar",
+      data: {
+        labels: {{ dept_labels|tojson }},
+        datasets: [{
+          label: "Average Attendance (%)",
+          data: {{ dept_data|tojson }},
+          backgroundColor: {{ dept_data|tojson }}.map(val => val < 60 ? "#ef4444" : (val < 75 ? "#f59e0b" : "#0f2744")),
+          borderRadius: 6,
+          barPercentage: 0.55
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` Avg Attendance: ${ctx.raw}%`
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            ticks: { callback: v => v + "%" },
+            grid: { color: "#f1f5f9" }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
+
+  // ── Chart 4: Risk Distribution Doughnut ──────────────────────────────────
+  {% if high_risk_count + medium_risk_count + low_risk_count > 0 %}
+  const ctxRisk = document.getElementById("riskDistChart");
+  if (ctxRisk) {
+    new Chart(ctxRisk, {
+      type: "doughnut",
+      data: {
+        labels: {{ risk_labels|tojson }},
+        datasets: [{
+          data: {{ risk_data|tojson }},
+          backgroundColor: ["#dc2626", "#d97706", "#059669"],
+          borderWidth: 3,
+          borderColor: "#ffffff"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "70%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              boxWidth: 12,
+              padding: 10,
+              usePointStyle: true
+            }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
+
+  // ── Chart 2: Subject-wise Horizontal Bar Chart ───────────────────────────
+  {% if subject_labels and subject_labels|length > 0 %}
+  const ctxSubj = document.getElementById("subjectChart");
+  if (ctxSubj) {
+    new Chart(ctxSubj, {
+      type: "bar",
+      data: {
+        labels: {{ subject_labels|tojson }},
+        datasets: [{
+          label: "Subject Attendance %",
+          data: {{ subject_data|tojson }},
+          backgroundColor: {{ subject_data|tojson }}.map(val => val < 60 ? "#ef4444" : (val < 75 ? "#f59e0b" : "#0891b2")),
+          borderRadius: 6,
+          barPercentage: 0.6
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` Attendance: ${ctx.raw}%`
+            }
+          }
+        },
+        scales: {
+          x: {
+            min: 0,
+            max: 100,
+            ticks: { callback: v => v + "%" },
+            grid: { color: "#f1f5f9" }
+          },
+          y: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
+
+  // ── Chart 3: Monthly Trajectory Area Line Chart ───────────────────────────
+  {% if month_labels and month_labels|length > 0 %}
+  const ctxTrend = document.getElementById("monthlyTrendChart");
+  if (ctxTrend) {
+    new Chart(ctxTrend, {
+      type: "line",
+      data: {
+        labels: {{ month_labels|tojson }},
+        datasets: [{
+          label: "Monthly Attendance Rate",
+          data: {{ month_data|tojson }},
+          borderColor: "#0891b2",
+          backgroundColor: "rgba(8, 145, 178, 0.12)",
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: "#0f2744",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` Attendance: ${ctx.raw}%`
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            ticks: { callback: v => v + "%" },
+            grid: { color: "#f1f5f9" }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
+
+});
+</script>
+{% endblock %}

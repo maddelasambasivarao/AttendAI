@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Analytics Overview{% endblock %}
+{% block page_title %}Attendance Analytics{% endblock %}
+
+{% block content %}
+{% if active_sem %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h5 class="fw-bold mb-0">{{ active_sem.name }}</h5>
+    <div class="text-muted small">{{ summary|length }} students tracked</div>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="POST" action="{{ url_for('analytics.predict_all') }}">
+      <button class="btn btn-primary btn-sm">
+        <i class="bi bi-robot me-1"></i>Run ML Predictions for All
+      </button>
+    </form>
+    <a href="{{ url_for('reports.excel_semester', semester_id=active_sem.id) }}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export Excel
+    </a>
+    <a href="{{ url_for('reports.pdf_risk') }}" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Risk PDF
+    </a>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-pie-chart me-2 text-primary"></i>Attendance Distribution</h6>
+      </div>
+      <div class="card-body d-flex justify-content-center">
+        <div style="max-width:280px;"><canvas id="distChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-bar-chart me-2 text-primary"></i>Student Attendance %</h6>
+      </div>
+      <div class="card-body"><canvas id="studentBar" height="100"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Student Table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-people me-2 text-primary"></i>Student Summary</h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Roll No</th>
+            <th>Name</th>
+            <th>Total</th>
+            <th>Present</th>
+            <th>Attendance %</th>
+            <th>Risk</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in summary %}
+          <tr>
+            <td class="ps-3 font-monospace small">{{ s.roll }}</td>
+            <td class="fw-semibold">{{ s.name }}</td>
+            <td>{{ s.total }}</td>
+            <td>{{ s.present }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:6px;max-width:80px;">
+                  <div class="progress-bar {% if s.percentage < 60 %}bg-danger{% elif s.percentage < 75 %}bg-warning{% else %}bg-success{% endif %}"
+                       style="width:{{ s.percentage }}%"></div>
+                </div>
+                <span class="fw-semibold small {% if s.percentage < 60 %}text-danger{% elif s.percentage < 75 %}text-warning{% else %}text-success{% endif %}">
+                  {{ s.percentage }}%
+                </span>
+              </div>
+            </td>
+            <td>
+              {% if s.risk != 'N/A' %}
+              <span class="badge {% if s.risk=='High' %}bg-danger{% elif s.risk=='Medium' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                {{ s.risk }}
+              </span>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('analytics.student_detail', student_id=s.id) }}"
+                   class="btn btn-outline-primary" title="Detail"><i class="bi bi-bar-chart"></i></a>
+                <a href="{{ url_for('reports.pdf_student', student_id=s.id) }}"
+                   class="btn btn-outline-danger" title="PDF"><i class="bi bi-file-pdf"></i></a>
+                <form method="POST" action="{{ url_for('analytics.predict_student', student_id=s.id) }}">
+                  <button class="btn btn-outline-secondary" title="Run ML Prediction"><i class="bi bi-robot"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No students in active semester.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="alert alert-warning border-0 shadow-sm">
+  <i class="bi bi-exclamation-triangle me-2"></i>No active semester found.
+  <a href="{{ url_for('admin.semesters') }}">Create one →</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if chart_data and chart_data['values'] %}
+<script>
+// Distribution chart
+new Chart(document.getElementById("distChart"), {
+  type: "doughnut",
+  data: {
+    labels: {{ chart_data['labels'] | tojson }},
+    datasets: [{
+      data: {{ chart_data['values'] | tojson }},
+      backgroundColor: ["#dc3545","#fd7e14","#ffc107","#0d6efd","#198754"],
+      borderWidth: 2, borderColor: "#fff"
+    }]
+  },
+  options: { cutout:"60%", plugins: { legend:{ position:"bottom", labels:{ font:{ size:11 }, padding:10 } } } }
+});
+
+// Student bar chart
+const names = {{ summary | map(attribute='name') | list | tojson }};
+const pcts  = {{ summary | map(attribute='percentage') | list | tojson }};
+const colors = pcts.map(p => p < 60 ? '#dc3545' : p < 75 ? '#fd7e14' : '#198754');
+
+new Chart(document.getElementById("studentBar"), {
+  type: "bar",
+  data: {
+    labels: names,
+    datasets: [{
+      label: "Attendance %",
+      data: pcts,
+      backgroundColor: colors,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    scales: {
+      x: { min: 0, max: 100, ticks: { callback: v => v + "%" } },
+      y: { ticks: { font: { size: 11 } } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

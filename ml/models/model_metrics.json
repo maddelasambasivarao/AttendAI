@@ -1,0 +1,60 @@
+{
+  "best_model_name": "Logistic Regression",
+  "metrics": {
+    "accuracy": 0.8398,
+    "precision": 0.732,
+    "recall": 0.8491,
+    "f1_score": 0.7862,
+    "roc_auc": 0.9281,
+    "confusion_matrix": [
+      [
+        698,
+        138
+      ],
+      [
+        67,
+        377
+      ]
+    ],
+    "classification_report": {
+      "0": {
+        "precision": 0.9124183006535947,
+        "recall": 0.8349282296650717,
+        "f1-score": 0.8719550281074329,
+        "support": 836.0
+      },
+      "1": {
+        "precision": 0.7320388349514563,
+        "recall": 0.8490990990990991,
+        "f1-score": 0.786235662148071,
+        "support": 444.0
+      },
+      "accuracy": 0.83984375,
+      "macro avg": {
+        "precision": 0.8222285678025255,
+        "recall": 0.8420136643820855,
+        "f1-score": 0.8290953451277518,
+        "support": 1280.0
+      },
+      "weighted avg": {
+        "precision": 0.8498491734881654,
+        "recall": 0.83984375,
+        "f1-score": 0.8422211230402793,
+        "support": 1280.0
+      }
+    }
+  },
+  "feature_importances": {
+    "classes_attended": 0.5046,
+    "total_classes_so_far": 0.2101,
+    "remaining_classes": 0.2101,
+    "overall_attendance": 0.0332,
+    "attendance_trend": 0.0186,
+    "attendance_last_10": 0.0118,
+    "consecutive_absences": 0.0041,
+    "current_percentage": 0.0037,
+    "subject_attendance": 0.0037
+  },
+  "test_sample_size": 1280,
+  "test_student_count": 80
+}

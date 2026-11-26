@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Interventions{% endblock %}
+{% block page_title %}Faculty Interventions{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Log New Intervention -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2 text-warning"></i>Log Intervention</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('faculty.add_intervention') }}">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Student *</label>
+            <select name="student_id" class="form-select form-select-sm" required>
+              <option value="">-- Select Student --</option>
+              {% for st in students %}
+              <option value="{{ st.id }}">{{ st.name }} ({{ st.roll_number }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Type *</label>
+            <select name="intervention_type" class="form-select form-select-sm">
+              <option value="meeting">Meeting</option>
+              <option value="email">Email</option>
+              <option value="parent_contact">Parent Contact</option>
+              <option value="counselling">Counselling</option>
+              <option value="warning_letter">Warning Letter</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Notes</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="3"
+                      placeholder="Describe the intervention..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Follow-up Date</label>
+            <input type="date" name="follow_up_date" class="form-control form-control-sm" />
+          </div>
+          <button class="btn btn-warning btn-sm w-100 fw-semibold">
+            <i class="bi bi-send me-1"></i>Log Intervention
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Intervention Log -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-journal-text me-2 text-warning"></i>Intervention Log ({{ interventions|length }})</h6>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Student</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Follow-up</th>
+              <th>Status</th>
+              <th class="text-center">Update</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for iv in interventions %}
+            <tr>
+              <td class="ps-3">
+                <div class="fw-semibold">{{ iv.student.name }}</div>
+                <div class="text-muted small font-monospace">{{ iv.student.roll_number }}</div>
+              </td>
+              <td class="small">{{ iv.intervention_type | replace('_',' ') | title }}</td>
+              <td class="small text-muted">{{ iv.intervention_date }}</td>
+              <td class="small text-muted">{{ iv.follow_up_date or '—' }}</td>
+              <td>
+                <span class="badge {% if iv.status == 'resolved' %}bg-success{% elif iv.status == 'in_progress' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                  {{ iv.status | replace('_',' ') | title }}
+                </span>
+              </td>
+              <td class="text-center">
+                <form method="POST" action="{{ url_for('faculty.update_intervention', iv_id=iv.id) }}" class="d-flex gap-1 justify-content-center">
+                  <select name="status" class="form-select form-select-sm" style="width:120px;">
+                    <option value="open"        {% if iv.status == 'open' %}selected{% endif %}>Open</option>
+                    <option value="in_progress" {% if iv.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="resolved"    {% if iv.status == 'resolved' %}selected{% endif %}>Resolved</option>
+                  </select>
+                  <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-save"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No interventions recorded yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Mark Attendance{% endblock %}
+{% block page_title %}Session Attendance Marking{% endblock %}
+
+{% block content %}
+<!-- Selection & Filter Panel -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-white border-bottom py-3">
+    <h6 class="mb-0 fw-semibold">
+      <i class="bi bi-funnel me-2 text-primary"></i>1. Select Class Session &amp; Subject
+    </h6>
+  </div>
+  <div class="card-body p-3">
+    <form method="GET" class="row g-2 align-items-end" id="sessionForm">
+      <!-- Semester -->
+      <div class="col-md-3 col-sm-6">
+        <label class="form-label small fw-semibold mb-1">Semester *</label>
+        <select name="semester_id" class="form-select form-select-sm" onchange="this.form.submit()" required>
+          <option value="">-- Select Semester --</option>
+          {% for sem in semesters %}
+          <option value="{{ sem.id }}" {% if selected_sem and sem.id == selected_sem.id %}selected{% endif %}>
+            {{ sem.name }} {% if sem.is_active %}(Active){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Subject -->
+      <div class="col-md-3 col-sm-6">
+        <label class="form-label small fw-semibold mb-1">Subject *</label>
+        <select name="subject_id" class="form-select form-select-sm" onchange="this.form.submit()" required>
+          <option value="">-- Select Subject --</option>
+          {% for sub in subjects %}
+          <option value="{{ sub.id }}" {% if selected_sub and sub.id == selected_sub.id %}selected{% endif %}>
+            {{ sub.code }} – {{ sub.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Department -->
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small fw-semibold mb-1">Department</label>
+        <select name="department" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Departments</option>
+          {% for dept in departments %}
+          <option value="{{ dept }}" {% if selected_dept == dept %}selected{% endif %}>{{ dept }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Year -->
+      <div class="col-md-1 col-sm-3">
+        <label class="form-label small fw-semibold mb-1">Year</label>
+        <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All</option>
+          {% for yr in years %}
+          <option value="{{ yr }}" {% if selected_year == yr %}selected{% endif %}>Yr {{ yr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Section -->
+      <div class="col-md-1 col-sm-3">
+        <label class="form-label small fw-semibold mb-1">Section</label>
+        <select name="section" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All</option>
+          {% for sec in sections %}
+          <option value="{{ sec }}" {% if selected_sec == sec %}selected{% endif %}>Sec {{ sec }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Date -->
+      <div class="col-md-1 col-sm-6">
+        <label class="form-label small fw-semibold mb-1">Date *</label>
+        <input type="date" name="attendance_date" class="form-control form-control-sm"
+               value="{{ att_date.isoformat() }}" onchange="this.form.submit()" required />
+      </div>
+
+      <!-- Session Slot -->
+      <div class="col-md-1 col-sm-6">
+        <label class="form-label small fw-semibold mb-1">Session</label>
+        <select name="session_slot" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="1" {% if session_slot == 1 %}selected{% endif %}>Slot 1</option>
+          <option value="2" {% if session_slot == 2 %}selected{% endif %}>Slot 2</option>
+          <option value="3" {% if session_slot == 3 %}selected{% endif %}>Slot 3</option>
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Step 2: Enrolled Students & Marking Table -->
+{% if selected_sub and selected_sem %}
+<form method="POST">
+  <input type="hidden" name="semester_id" value="{{ selected_sem.id }}" />
+  <input type="hidden" name="subject_id"  value="{{ selected_sub.id }}" />
+  <input type="hidden" name="attendance_date" value="{{ att_date.isoformat() }}" />
+  <input type="hidden" name="session_slot" value="{{ session_slot }}" />
+  <input type="hidden" name="department" value="{{ selected_dept or '' }}" />
+  <input type="hidden" name="year" value="{{ selected_year or '' }}" />
+  <input type="hidden" name="section" value="{{ selected_sec or '' }}" />
+
+  {% if already_marked %}
+  <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center justify-content-between p-3 mb-3">
+    <div>
+      <i class="bi bi-clock-history fs-5 me-2 text-warning"></i>
+      <strong>Existing Attendance Detected:</strong> Attendance for <strong>{{ selected_sub.code }}</strong> on
+      <strong>{{ att_date.strftime('%d %B %Y') }} (Session {{ session_slot }})</strong> has already been recorded.
+      Modifying records will update SQLite and preserve an audit log entry.
+    </div>
+    <span class="badge bg-warning text-dark px-3 py-2">Previously Saved</span>
+  </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-check2-square me-2 text-primary"></i>
+          {{ selected_sub.code }} – {{ selected_sub.name }}
+          <span class="badge bg-secondary-subtle text-secondary ms-2">{{ selected_sem.name }}</span>
+        </h6>
+        <div class="text-muted small mt-1">
+          Date: <strong>{{ att_date.strftime('%d %b %Y') }}</strong> | Session Slot: <strong>{{ session_slot }}</strong> | Enrolled Students: <strong>{{ students|length }}</strong>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls & Live Stats -->
+      <div class="d-flex align-items-center gap-2">
+        <span id="liveCounter" class="small me-2 d-none d-md-inline"></span>
+        <button type="button" class="btn btn-sm btn-outline-success" onclick="markAll('present')">
+          <i class="bi bi-check-all me-1"></i>All Present
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="markAll('absent')">
+          <i class="bi bi-x-lg me-1"></i>All Absent
+        </button>
+        <button type="submit" class="btn btn-sm btn-primary px-3">
+          <i class="bi bi-save me-1"></i>Save Attendance
+        </button>
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      {% if students %}
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3" style="width: 50px;">#</th>
+              <th style="width: 140px;">Roll No</th>
+              <th>Student Name</th>
+              <th>Dept / Year / Sec</th>
+              <th>Subject Attendance</th>
+              <th style="width: 220px;" class="text-center">Status (Present / Absent)</th>
+              <th style="width: 200px;">Remarks (Optional)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for st in students %}
+            {% set existing_rec = existing_records_map.get(st.id) %}
+            {% set current_status = existing_rec.status if existing_rec else 'present' %}
+            {% set current_remarks = existing_rec.remarks if existing_rec and existing_rec.remarks else '' %}
+            {% set sub_stat = st.get_subject_stats(selected_sub.id) %}
+
+            <tr>
+              <td class="ps-3 text-muted small">{{ loop.index }}</td>
+              <td class="font-monospace small fw-bold">{{ st.roll_number }}</td>
+              <td>
+                <div class="fw-semibold text-dark">{{ st.name }}</div>
+                <div class="text-muted" style="font-size: 0.72rem;">{{ st.student_id }}</div>
+              </td>
+              <td class="small text-muted">
+                {{ st.department }} <span class="badge bg-light text-secondary border">Yr {{ st.year }}-Sec {{ st.section }}</span>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2" style="max-width: 130px;">
+                  <div class="progress flex-grow-1" style="height: 6px;">
+                    <div class="progress-bar bg-{{ sub_stat.badge_class }}" style="width: {{ sub_stat.percentage }}%;"></div>
+                  </div>
+                  <span class="small fw-semibold text-{{ sub_stat.badge_class }}" style="font-size: 0.78rem;">
+                    {{ sub_stat.percentage }}%
+                  </span>
+                </div>
+                <div class="text-muted" style="font-size: 0.7rem;">{{ sub_stat.attended }}/{{ sub_stat.conducted }} attended</div>
+              </td>
+              <td class="text-center">
+                <!-- Present / Absent Radio Toggle Buttons -->
+                <div class="btn-group btn-group-sm status-group" data-student="{{ st.id }}" role="group">
+                  <input type="radio" class="btn-check" name="status_{{ st.id }}"
+                         id="p_{{ st.id }}" value="present"
+                         {% if current_status == 'present' %}checked{% endif %} />
+                  <label class="btn btn-outline-success px-3" for="p_{{ st.id }}">
+                    <i class="bi bi-check-circle me-1"></i>Present
+                  </label>
+
+                  <input type="radio" class="btn-check" name="status_{{ st.id }}"
+                         id="a_{{ st.id }}" value="absent"
+                         {% if current_status == 'absent' %}checked{% endif %} />
+                  <label class="btn btn-outline-danger px-3" for="a_{{ st.id }}">
+                    <i class="bi bi-x-circle me-1"></i>Absent
+                  </label>
+                </div>
+              </td>
+              <td>
+                <input type="text" name="remarks_{{ st.id }}" class="form-control form-control-sm"
+                       placeholder="e.g. Leave, Medical" value="{{ current_remarks }}" />
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+        No enrolled students found for the selected department, year, or section.
+      </div>
+      {% endif %}
+    </div>
+
+    {% if students %}
+    <div class="card-footer bg-white py-3 d-flex align-items-center justify-content-between">
+      <div class="text-muted small">
+        <i class="bi bi-shield-check me-1 text-success"></i>
+        Duplicate entries are automatically prevented for Student + Subject + Date + Session.
+      </div>
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-save me-1"></i>Save Attendance Session
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</form>
+
+{% elif selected_sem and not selected_sub %}
+<div class="alert alert-info border-0 shadow-sm">
+  <i class="bi bi-arrow-up-circle me-2"></i>Please select a <strong>Subject</strong> above to load the enrolled students list.
+</div>
+{% else %}
+<div class="alert alert-info border-0 shadow-sm">
+  <i class="bi bi-arrow-up-circle me-2"></i>Please select a <strong>Semester</strong> and <strong>Subject</strong> to begin marking attendance.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function markAll(status) {
+  document.querySelectorAll(`.status-group input[type=radio][value=${status}]`).forEach(r => {
+    r.checked = true;
+  });
+  updateCounter();
+}
+
+function updateCounter() {
+  const presentCount = document.querySelectorAll(".status-group input[type=radio][value='present']:checked").length;
+  const absentCount = document.querySelectorAll(".status-group input[type=radio][value='absent']:checked").length;
+  const el = document.getElementById("liveCounter");
+  if (el) {
+    el.innerHTML = `<span class="badge bg-success-subtle text-success me-1">${presentCount} Present</span>` +
+                   `<span class="badge bg-danger-subtle text-danger">${absentCount} Absent</span>`;
+  }
+}
+
+document.querySelectorAll(".status-group input[type=radio]").forEach(r => {
+  r.addEventListener("change", updateCounter);
+});
+updateCounter();
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Student Detail – {{ student.name }}{% endblock %}
+{% block page_title %}Student Analytics – {{ student.name }}{% endblock %}
+
+{% block content %}
+<!-- Student Header -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <h5 class="fw-bold mb-1">{{ student.name }}</h5>
+        <div class="text-muted small">
+          <i class="bi bi-hash me-1"></i>{{ student.roll_number }} &nbsp;|&nbsp;
+          <i class="bi bi-calendar3 me-1"></i>{{ student.semester.name }}
+        </div>
+      </div>
+      <div class="col-md-3 text-center">
+        {% set overall = student.overall_attendance_pct() %}
+        <div class="display-6 fw-bold {% if overall < 60 %}text-danger{% elif overall < 75 %}text-warning{% else %}text-success{% endif %}">
+          {{ overall }}%
+        </div>
+        <div class="text-muted small">Overall Attendance</div>
+      </div>
+      <div class="col-md-3 text-end">
+        {% if latest_pred %}
+        <span class="badge fs-6 bg-{{ latest_pred.risk_badge_class }} p-2">
+          <i class="bi bi-shield-{% if latest_pred.risk_level == 'High' %}exclamation{% elif latest_pred.risk_level == 'Medium' %}half{% else %}check{% endif %} me-1"></i>
+          {{ latest_pred.risk_level }} Risk
+        </span>
+        {% endif %}
+        <div class="d-flex gap-2 justify-content-end mt-2">
+          <a href="{{ url_for('reports.pdf_student', student_id=student.id) }}" class="btn btn-sm btn-outline-danger" title="Download Official PDF Dossier">
+            <i class="bi bi-file-pdf me-1"></i>PDF
+          </a>
+          <a href="{{ url_for('reports.excel_student', student_id=student.id) }}" class="btn btn-sm btn-outline-success" title="Download 3-Tab Excel Workbook">
+            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+          </a>
+          <form method="POST" action="{{ url_for('analytics.predict_student', student_id=student.id) }}">
+            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-robot me-1"></i>Re-Predict</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subject-wise Stats -->
+<div class="row g-3 mb-3">
+  {% for ss in subject_stats %}
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100 {% if ss.risk_flag %}border-start border-3 border-danger{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <div class="fw-semibold">{{ ss.subject.name }}</div>
+            <div class="text-muted small font-monospace">{{ ss.subject.code }}</div>
+          </div>
+          <span class="badge {% if ss.percentage < 60 %}bg-danger{% elif ss.percentage < 75 %}bg-warning text-dark{% else %}bg-success{% endif %} fs-6">
+            {{ ss.percentage }}%
+          </span>
+        </div>
+        <div class="progress mb-2" style="height:8px;">
+          <div class="progress-bar {% if ss.percentage < 60 %}bg-danger{% elif ss.percentage < 75 %}bg-warning{% else %}bg-success{% endif %}"
+               style="width:{{ ss.percentage }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between small text-muted">
+          <span><i class="bi bi-check-circle text-success me-1"></i>{{ ss.present }} present</span>
+          <span><i class="bi bi-x-circle text-danger me-1"></i>{{ ss.absent }} absent</span>
+          <span>{{ ss.total }} total</span>
+        </div>
+        {% if ss.risk_flag %}
+        <div class="alert alert-danger py-1 px-2 mb-0 mt-2 small">
+          <i class="bi bi-exclamation-triangle me-1"></i>Below 75% threshold!
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Recommendations -->
+{% if latest_pred and latest_pred.recommendations %}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-lightbulb me-2 text-warning"></i>AI Recommendations</h6>
+  </div>
+  <div class="card-body">
+    <ul class="mb-0">
+      {% for tip in latest_pred.recommendations.split('\n') %}
+      {% if tip.strip() %}
+      <li class="mb-1">{{ tip.strip() }}</li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+    <div class="text-muted small mt-2">
+      Last predicted: {{ latest_pred.predicted_at.strftime('%d %b %Y %H:%M') }} &nbsp;|&nbsp;
+      Model v{{ latest_pred.model_version }}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

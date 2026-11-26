@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Edit Student – {{ student.name }}{% endblock %}
+{% block page_title %}Edit Student Profile{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-pencil-square me-2 text-primary"></i>
+          Editing: {{ student.name }} ({{ student.roll_number }})
+        </h6>
+        <span class="badge {% if student.is_active %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
+          {{ 'Active' if student.is_active else 'Inactive' }}
+        </span>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST">
+          <div class="row g-3">
+            <!-- Full Name -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Full Name *</label>
+              <input type="text" name="name" class="form-control"
+                     value="{{ student.name }}" required />
+            </div>
+
+            <!-- Roll Number -->
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold">Roll Number *</label>
+              <input type="text" name="roll_number" class="form-control font-monospace"
+                     value="{{ student.roll_number }}" required />
+            </div>
+
+            <!-- Student ID -->
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold">Student ID *</label>
+              <input type="text" name="student_id" class="form-control font-monospace"
+                     value="{{ student.student_id }}" required />
+            </div>
+
+            <!-- Department -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Department *</label>
+              <input type="text" name="department" class="form-control"
+                     value="{{ student.department }}" required />
+            </div>
+
+            <!-- Year -->
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold">Academic Year *</label>
+              <select name="year" class="form-select" required>
+                <option value="1" {% if student.year == 1 %}selected{% endif %}>Year 1</option>
+                <option value="2" {% if student.year == 2 %}selected{% endif %}>Year 2</option>
+                <option value="3" {% if student.year == 3 %}selected{% endif %}>Year 3</option>
+                <option value="4" {% if student.year == 4 %}selected{% endif %}>Year 4</option>
+              </select>
+            </div>
+
+            <!-- Section -->
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold">Section *</label>
+              <input type="text" name="section" class="form-control"
+                     value="{{ student.section }}" maxlength="5" required />
+            </div>
+
+            <!-- Semester -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Semester *</label>
+              <select name="semester_id" class="form-select" required>
+                {% for sem in semesters %}
+                <option value="{{ sem.id }}" {% if sem.id == student.semester_id %}selected{% endif %}>
+                  {{ sem.name }}
+                </option>
+                {% endfor %}
+              </select>
+              <div class="form-text small">Changing semester automatically syncs subject enrollments.</div>
+            </div>
+
+            <!-- Email -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Email Address</label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ student.email or '' }}" />
+            </div>
+
+            <!-- Phone -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Phone Number</label>
+              <input type="text" name="phone" class="form-control"
+                     value="{{ student.phone or '' }}" />
+            </div>
+
+            <!-- Status Checkbox -->
+            <div class="col-md-6 d-flex align-items-center">
+              <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                       {% if student.is_active %}checked{% endif %} />
+                <label class="form-check-label fw-semibold" for="isActive">
+                  Account Active
+                </label>
+                <div class="form-text small">Unchecking deactivates student while preserving attendance history.</div>
+              </div>
+            </div>
+
+            <!-- Attendance Stats Alert -->
+            <div class="col-12">
+              <div class="alert alert-light border d-flex align-items-center justify-content-between p-2 mb-0">
+                <div class="small text-muted">
+                  <i class="bi bi-clock-history me-1 text-primary"></i>
+                  Historical records: <strong>{{ student.attendances.count() }}</strong> attendances,
+                  <strong>{{ student.enrolments.count() }}</strong> enrolled subjects.
+                  Overall attendance: <strong>{{ student.overall_attendance_pct() }}%</strong>.
+                </div>
+                <a href="{{ url_for('analytics.student_detail', student_id=student.id) }}"
+                   class="btn btn-sm btn-outline-info">
+                  <i class="bi bi-bar-chart me-1"></i>Analytics
+                </a>
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="col-12 d-flex gap-2 pt-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save me-1"></i>Save Changes
+              </button>
+              <a href="{{ url_for('admin.students') }}" class="btn btn-outline-secondary">
+                Cancel
+              </a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

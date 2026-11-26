@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Subject Attendance Report – {{ subject.code }}{% endblock %}
+{% block page_title %}Subject Attendance Analysis{% endblock %}
+
+{% block content %}
+<!-- Subject Header Card -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-primary fs-6 font-monospace">{{ subject.code }}</span>
+          <h4 class="fw-bold mb-0 text-dark">{{ subject.name }}</h4>
+        </div>
+        <div class="text-muted small mt-1">
+          <i class="bi bi-calendar3 me-1"></i>{{ subject.semester.name }}
+          <span class="mx-1">&bull;</span>
+          <i class="bi bi-person-badge me-1"></i>Faculty: <strong>{{ subject.faculty.name if subject.faculty else 'Unassigned' }}</strong>
+          <span class="mx-1">&bull;</span>
+          Type: <span class="badge bg-light text-secondary border">{{ subject.subject_type | capitalize }}</span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.pdf_subject', subject_id=subject.id) }}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-file-pdf me-1"></i>Export PDF
+        </a>
+        <a href="{{ url_for('reports.excel_subject', subject_id=subject.id) }}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </a>
+        <a href="{{ url_for('attendance.mark', semester_id=subject.semester_id, subject_id=subject.id) }}" class="btn btn-primary btn-sm">
+          <i class="bi bi-check2-square me-1"></i>Mark Session
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Summary Metrics -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-primary-subtle text-primary rounded-3">
+          <i class="bi bi-journal-bookmark fs-3"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold">{{ conducted }}</div>
+          <div class="text-muted small">Classes Conducted</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-info-subtle text-info rounded-3">
+          <i class="bi bi-people fs-3"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold">{{ roster|length }}</div>
+          <div class="text-muted small">Enrolled Students</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-success-subtle text-success rounded-3">
+          <i class="bi bi-percent fs-3"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold">{{ avg_percentage }}%</div>
+          <div class="text-muted small">Average Attendance</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-danger-subtle text-danger rounded-3">
+          <i class="bi bi-exclamation-triangle fs-3"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold">{{ shortage_count }}</div>
+          <div class="text-muted small">Students &lt; 75% Shortage</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Enrolled Students Attendance Performance Roster -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div>
+      <h6 class="mb-0 fw-semibold">
+        <i class="bi bi-list-check me-2 text-primary"></i>Enrolled Students Attendance Performance Roster
+      </h6>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterShortageOnly()">
+        <i class="bi bi-funnel me-1"></i>Toggle Shortage Only
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle" id="rosterTable">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width: 50px;">#</th>
+            <th style="width: 130px;">Roll No</th>
+            <th>Student Name</th>
+            <th>Dept / Section</th>
+            <th class="text-center" style="width: 110px;">Conducted</th>
+            <th class="text-center" style="width: 100px;">Attended</th>
+            <th class="text-center" style="width: 90px;">Absent</th>
+            <th style="width: 180px;">Attendance %</th>
+            <th class="text-center" style="width: 130px;">Shortage Status</th>
+            <th class="text-center" style="width: 90px;">History</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in roster %}
+          <tr class="student-row {% if item.percentage < 60 %}table-danger-subtle{% elif item.percentage < 75 %}table-warning-subtle{% endif %}"
+              data-shortage="{{ 'true' if item.percentage < 75 else 'false' }}">
+            <td class="ps-3 text-muted small">{{ loop.index }}</td>
+            <td class="font-monospace small fw-bold">
+              <a href="{{ url_for('attendance.student_history', student_id=item.student.id) }}" class="text-decoration-none">
+                {{ item.student.roll_number }}
+              </a>
+            </td>
+            <td>
+              <div class="fw-semibold text-dark">{{ item.student.name }}</div>
+              <div class="text-muted" style="font-size: 0.72rem;">{{ item.student.student_id }}</div>
+            </td>
+            <td class="small text-muted">
+              {{ item.student.department }} <span class="badge bg-light text-secondary border">Sec {{ item.student.section }}</span>
+            </td>
+            <td class="text-center font-monospace small">{{ item.conducted }}</td>
+            <td class="text-center font-monospace small text-success fw-bold">{{ item.attended }}</td>
+            <td class="text-center font-monospace small text-danger">{{ item.absent }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height: 7px;">
+                  <div class="progress-bar bg-{{ item.badge_class }}" style="width: {{ item.percentage }}%;"></div>
+                </div>
+                <span class="small fw-bold text-{{ item.badge_class }}" style="min-width: 45px;">
+                  {{ item.percentage }}%
+                </span>
+              </div>
+            </td>
+            <td class="text-center">
+              {% if item.percentage < 60 %}
+              <span class="badge bg-danger rounded-pill px-2">
+                <i class="bi bi-exclamation-octagon me-1"></i>Critical (&lt;60%)
+              </span>
+              {% elif item.percentage < 75 %}
+              <span class="badge bg-warning text-dark rounded-pill px-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>Shortage (60-74%)
+              </span>
+              {% else %}
+              <span class="badge bg-success rounded-pill px-2">
+                <i class="bi bi-check-circle me-1"></i>Satisfactory
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{{ url_for('attendance.student_history', student_id=item.student.id) }}"
+                 class="btn btn-sm btn-outline-info" title="Full Attendance Timeline">
+                <i class="bi bi-clock-history"></i>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="10" class="text-center text-muted py-5">
+              No students enrolled in this subject.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let shortageFilterActive = false;
+function filterShortageOnly() {
+  shortageFilterActive = !shortageFilterActive;
+  document.querySelectorAll(".student-row").forEach(row => {
+    if (shortageFilterActive) {
+      row.style.display = (row.dataset.shortage === 'true') ? '' : 'none';
+    } else {
+      row.style.display = '';
+    }
+  });
+}
+</script>
+{% endblock %}

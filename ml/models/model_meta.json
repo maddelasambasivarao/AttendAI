@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "best_model": "Logistic Regression",
+  "feature_columns": [
+    "total_classes_so_far",
+    "classes_attended",
+    "current_percentage",
+    "consecutive_absences",
+    "attendance_last_10",
+    "attendance_trend",
+    "remaining_classes",
+    "subject_attendance",
+    "overall_attendance"
+  ],
+  "target_column": "is_shortage",
+  "threshold": 75.0,
+  "test_accuracy": 0.8398,
+  "test_f1_score": 0.7862,
+  "test_roc_auc": 0.9281,
+  "total_dataset_rows": 6400,
+  "classes": [
+    "Regular (>=75%)",
+    "Shortage (<75%)"
+  ]
+}

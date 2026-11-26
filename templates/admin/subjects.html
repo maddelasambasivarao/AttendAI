@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Subjects{% endblock %}
+{% block page_title %}Subject Management{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Add Subject -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2 text-primary"></i>Add Subject</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.add_subject') }}">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Subject Name *</label>
+            <input type="text" name="name" class="form-control form-control-sm" required />
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Subject Code</label>
+            <input type="text" name="code" class="form-control form-control-sm" />
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Semester *</label>
+            <select name="semester_id" class="form-select form-select-sm" required>
+              <option value="">-- Select --</option>
+              {% for sem in semesters %}
+              <option value="{{ sem.id }}" {% if sem.id == selected_sem %}selected{% endif %}>{{ sem.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Faculty</label>
+            <select name="faculty_id" class="form-select form-select-sm">
+              <option value="">-- None --</option>
+              {% for f in faculty_list %}
+              <option value="{{ f.id }}">{{ f.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Total Classes Planned</label>
+            <input type="number" name="total_classes_planned" class="form-control form-control-sm" value="45" min="1" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Type</label>
+            <select name="subject_type" class="form-select form-select-sm">
+              <option value="theory">Theory</option>
+              <option value="lab">Lab</option>
+              <option value="tutorial">Tutorial</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm w-100">
+            <i class="bi bi-plus-circle me-1"></i>Add Subject
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subject List -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-book me-2 text-primary"></i>Subjects ({{ subjects|length }})</h6>
+        <form class="d-flex" method="GET">
+          <select name="semester_id" class="form-select form-select-sm" style="width:200px;" onchange="this.form.submit()">
+            <option value="">All Semesters</option>
+            {% for sem in semesters %}
+            <option value="{{ sem.id }}" {% if sem.id == selected_sem %}selected{% endif %}>{{ sem.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Code</th>
+              <th>Name</th>
+              <th>Semester</th>
+              <th>Faculty</th>
+              <th>Classes</th>
+              <th>Type</th>
+              <th class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in subjects %}
+            <tr>
+              <td class="ps-3 font-monospace">{{ sub.code or '—' }}</td>
+              <td class="fw-semibold">{{ sub.name }}</td>
+              <td class="text-muted small">{{ sub.semester.name }}</td>
+              <td class="text-muted small">{{ sub.faculty.name if sub.faculty else '—' }}</td>
+              <td>{{ sub.total_classes_planned }}</td>
+              <td>
+                <span class="badge {% if sub.subject_type == 'lab' %}bg-info{% elif sub.subject_type == 'tutorial' %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill">
+                  {{ sub.subject_type | capitalize }}
+                </span>
+              </td>
+              <td class="text-center">
+                <form method="POST" action="{{ url_for('admin.delete_subject', subject_id=sub.id) }}"
+                      onsubmit="return confirm('Delete {{ sub.name }}?')">
+                  <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No subjects found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

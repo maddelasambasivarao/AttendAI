@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Bulk Attendance Upload{% endblock %}
+{% block page_title %}Bulk Attendance Upload (CSV / Excel){% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Upload Form -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-cloud-arrow-up me-2 text-primary"></i>Upload Attendance File</h6>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" enctype="multipart/form-data">
+          <!-- Subject Selector -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Subject (Default if not specified in file)</label>
+            <select name="subject_id" class="form-select form-select-sm">
+              <option value="">-- Choose Subject --</option>
+              {% for sub in subjects %}
+              <option value="{{ sub.id }}">{{ sub.code }} – {{ sub.name }} ({{ sub.semester.name }})</option>
+              {% endfor %}
+            </select>
+            <div class="form-text small">If your file has a <code>code</code> column, it will override this selection.</div>
+          </div>
+
+          <!-- Date & Session Slot Fallbacks -->
+          <div class="row g-2 mb-3">
+            <div class="col-7">
+              <label class="form-label small fw-semibold">Default Date</label>
+              <input type="date" name="default_date" class="form-control form-control-sm" value="{{ today }}" />
+            </div>
+            <div class="col-5">
+              <label class="form-label small fw-semibold">Default Session</label>
+              <select name="default_session" class="form-select form-select-sm">
+                <option value="1">Session 1</option>
+                <option value="2">Session 2</option>
+                <option value="3">Session 3</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- File Upload -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">File (.csv, .xlsx, .xls) *</label>
+            <input type="file" name="file" class="form-control form-control-sm" accept=".csv,.xlsx,.xls" required />
+            <div class="form-text small">Max 16 MB. Supports Excel spreadsheets and CSV files.</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2">
+            <i class="bi bi-upload me-1"></i>Process &amp; Save Attendance
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formatting & Error-Handling Guidelines -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-shield-check me-2 text-success"></i>Upload Features &amp; Format Specifications</h6>
+      </div>
+      <div class="card-body p-4">
+        <!-- Key Capabilities -->
+        <div class="row g-2 mb-3">
+          <div class="col-sm-4">
+            <div class="p-2 border rounded bg-light text-center">
+              <i class="bi bi-database-check text-success fs-5 d-block"></i>
+              <strong class="small">Duplicate Safe</strong>
+              <div class="text-muted" style="font-size:0.7rem;">Updates existing records &amp; logs audit trail</div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="p-2 border rounded bg-light text-center">
+              <i class="bi bi-calendar-event text-primary fs-5 d-block"></i>
+              <strong class="small">Flexible Dates</strong>
+              <div class="text-muted" style="font-size:0.7rem;">Accepts YYYY-MM-DD or DD/MM/YYYY</div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="p-2 border rounded bg-light text-center">
+              <i class="bi bi-check2-all text-info fs-5 d-block"></i>
+              <strong class="small">Missing Values</strong>
+              <div class="text-muted" style="font-size:0.7rem;">Defaults missing status to absent safely</div>
+            </div>
+          </div>
+        </div>
+
+        <h6 class="fw-semibold small mb-2">Column Header Specifications:</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-3">
+            <thead class="table-light">
+              <tr><th>Column</th><th>Required</th><th>Recognized Values / Formats</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>roll_number</code></td><td><span class="badge bg-danger">Required</span></td><td>e.g. <code>CS202501</code> or student ID</td></tr>
+              <tr><td><code>status</code></td><td><span class="badge bg-warning text-dark">Optional</span></td><td><code>present</code>, <code>absent</code>, <code>P</code>, <code>A</code>, <code>1</code>, <code>0</code></td></tr>
+              <tr><td><code>date</code></td><td><span class="badge bg-secondary">Optional</span></td><td><code>2025-09-01</code> or <code>01/09/2025</code> (or form default)</td></tr>
+              <tr><td><code>code</code></td><td><span class="badge bg-secondary">Optional</span></td><td>Subject code (e.g. <code>CS601</code>)</td></tr>
+              <tr><td><code>session_slot</code></td><td><span class="badge bg-secondary">Optional</span></td><td><code>1</code>, <code>2</code>, <code>3</code> (Default: 1)</td></tr>
+              <tr><td><code>remarks</code></td><td><span class="badge bg-secondary">Optional</span></td><td>e.g. <code>Medical Leave</code>, <code>OD</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between p-2 bg-light border rounded gap-2">
+          <div class="small text-muted">
+            <i class="bi bi-file-earmark-arrow-down me-1 text-success fs-5 align-middle"></i>
+            Need ready-to-use template files?
+          </div>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('reports.template_excel') }}" class="btn btn-sm btn-success">
+              <i class="bi bi-file-earmark-excel me-1"></i>Excel Template (.xlsx)
+            </a>
+            <a href="{{ url_for('attendance.download_template') }}" class="btn btn-sm btn-outline-success">
+              <i class="bi bi-filetype-csv me-1"></i>CSV Template
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

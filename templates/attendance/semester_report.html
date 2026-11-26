@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Semester Attendance Report – {{ semester.name }}{% endblock %}
+{% block page_title %}Semester Master Attendance Analysis{% endblock %}
+
+{% block content %}
+<!-- Semester Header -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-primary fs-6">Year {{ semester.year }}</span>
+          <h4 class="fw-bold mb-0 text-dark">{{ semester.name }}</h4>
+        </div>
+        <div class="text-muted small mt-1">
+          <i class="bi bi-calendar3 me-1"></i>Term: {{ semester.start_date }} &rarr; {{ semester.end_date }}
+          <span class="mx-1">&bull;</span>
+          <i class="bi bi-people me-1"></i>Enrolled Students: <strong>{{ total_students }}</strong>
+          <span class="mx-1">&bull;</span>
+          Subjects: <strong>{{ subjects|length }}</strong>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.pdf_semester', semester_id=semester.id) }}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-file-pdf me-1"></i>Export PDF
+        </a>
+        <a href="{{ url_for('reports.excel_semester', semester_id=semester.id) }}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export Excel
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-primary-subtle text-primary rounded-3">
+          <i class="bi bi-people fs-3"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold">{{ total_students }}</div>
+          <div class="text-muted small">Total Students in Semester</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-warning-subtle text-warning fs-3 rounded-3">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold text-warning">{{ shortage_student_count }}</div>
+          <div class="text-muted small">Students with Attendance Shortage (&lt;75%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="p-3 bg-success-subtle text-success fs-3 rounded-3">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold text-success">{{ total_students - shortage_student_count }}</div>
+          <div class="text-muted small">Eligible Students (&ge;75%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Semester Master Attendance Matrix -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div>
+      <h6 class="mb-0 fw-semibold">
+        <i class="bi bi-grid-3x3 me-2 text-primary"></i>
+        Master Attendance Matrix: (Attended / Conducted = %)
+      </h6>
+    </div>
+    <div class="d-flex align-items-center gap-2 small">
+      <span class="badge bg-success-subtle text-success border border-success">&ge; 75% Regular</span>
+      <span class="badge bg-warning-subtle text-warning border border-warning">60-74% Shortage</span>
+      <span class="badge bg-danger-subtle text-danger border border-danger">&lt; 60% Critical</span>
+    </div>
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm mb-0 align-middle">
+        <thead class="table-light text-center">
+          <tr>
+            <th class="ps-3 text-start" style="min-width: 130px;">Roll No</th>
+            <th class="text-start" style="min-width: 170px;">Student Name</th>
+            <th style="min-width: 70px;">Sec</th>
+            {% for subj in subjects %}
+            <th style="min-width: 130px;">
+              <a href="{{ url_for('attendance.subject_report', subject_id=subj.id) }}" class="text-decoration-none fw-bold text-dark">
+                {{ subj.code }}
+              </a>
+              <div class="text-muted font-monospace" style="font-size: 0.68rem;">{{ subj.classes_conducted() }} held</div>
+            </th>
+            {% endfor %}
+            <th class="table-primary" style="min-width: 130px;">Cumulative %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in matrix_rows %}
+          <tr>
+            <td class="ps-3 font-monospace small fw-bold">
+              <a href="{{ url_for('attendance.student_history', student_id=r.student.id) }}" class="text-decoration-none">
+                {{ r.student.roll_number }}
+              </a>
+            </td>
+            <td>
+              <div class="fw-semibold small text-dark">{{ r.student.name }}</div>
+              <div class="text-muted" style="font-size: 0.7rem;">{{ r.student.department }}</div>
+            </td>
+            <td class="text-center small">{{ r.student.section }}</td>
+
+            {% for subj in subjects %}
+            {% set stat = r.subject_pcts[subj.id] %}
+            <td class="text-center {% if stat.conducted > 0 and stat.percentage < 60 %}table-danger{% elif stat.conducted > 0 and stat.percentage < 75 %}table-warning{% endif %}">
+              {% if stat.conducted > 0 %}
+              <div class="fw-bold small {% if stat.percentage < 60 %}text-danger{% elif stat.percentage < 75 %}text-warning{% else %}text-success{% endif %}">
+                {{ stat.percentage }}%
+              </div>
+              <div class="text-muted" style="font-size: 0.68rem;">{{ stat.attended }}/{{ stat.conducted }}</div>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+
+            <!-- Overall % Column -->
+            <td class="text-center table-primary">
+              <div class="fw-bold small text-{{ r.overall.badge_class }}">
+                {{ r.overall.percentage }}%
+              </div>
+              <div class="text-muted" style="font-size: 0.68rem;">
+                {{ r.overall.attended }}/{{ r.overall.conducted }}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="{{ subjects|length + 4 }}" class="text-center text-muted py-5">
+              No students enrolled in this semester.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
